@@ -9,14 +9,12 @@ import SwiftUI
 ///  `.dynamicIncludingBorders` to fill the full width with equal spacing
 ///  between items and from the items to the border.) and lineSpacing (which
 ///  adds a vertical separation between lines)
+struct ViewFramePreferenceKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {}
+}
+
 public struct WrappingHStack: View {
-    private struct HeightPreferenceKey: PreferenceKey {
-        static var defaultValue = CGFloat.zero
-        static func reduce(value: inout CGFloat , nextValue: () -> CGFloat) {
-            value = nextValue()
-        }
-    }
-    
     public enum Spacing {
         case constant(CGFloat)
         case dynamic(minSpacing: CGFloat)
@@ -37,30 +35,31 @@ public struct WrappingHStack: View {
     let lineSpacing: CGFloat
     let contentManager: ContentManager
     @State private var height: CGFloat = 0
-    
+
     public var body: some View {
         GeometryReader { geo in
-            InternalWrappingHStack (
+            InternalWrappingHStack(
                 width: geo.size.width,
                 alignment: alignment,
                 spacing: spacing,
                 lineSpacing: lineSpacing,
                 contentManager: contentManager
             )
-            .anchorPreference(
-                key: HeightPreferenceKey.self,
-                value: .bounds,
-                transform: {
-                    geo[$0].size.height
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: ViewFramePreferenceKey.self,
+                        value: proxy.frame(in: .global)
+                    )
                 }
             )
+            .onPreferenceChange(ViewFramePreferenceKey.self) { rect in
+                if abs(height - rect.height) > 1 {
+                    height = rect.height
+                }
+            }
         }
         .frame(height: height)
-        .onPreferenceChange(HeightPreferenceKey.self, perform: {
-            if abs(height - $0) > 1 {
-                height = $0
-            }
-        })
     }
 }
 
